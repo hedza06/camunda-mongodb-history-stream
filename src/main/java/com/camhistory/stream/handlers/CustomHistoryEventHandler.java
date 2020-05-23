@@ -7,21 +7,18 @@ import org.camunda.bpm.engine.impl.history.handler.HistoryEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Component
 public class CustomHistoryEventHandler implements HistoryEventHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomHistoryEventHandler.class);
-    private static final CustomHistoryEventHandler INSTANCE = new CustomHistoryEventHandler();
 
     @Autowired
     private HistoryDocumentRepository historyDocumentRepository;
 
-
-    public static CustomHistoryEventHandler getInstance() {
-        return INSTANCE;
-    }
 
     @Override
     public void handleEvent(HistoryEvent historyEvent)

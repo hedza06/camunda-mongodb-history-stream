@@ -32,6 +32,8 @@ public class MongoDBHistoryEntity extends HistoricProcessInstanceEventEntity {
         MongoDBHistoryEntity dbHistoryEntity = new MongoDBHistoryEntity();
         dbHistoryEntity.setId(historyEvent.getId());
         dbHistoryEntity.setProcessInstanceId(historyEvent.getProcessInstanceId());
+        dbHistoryEntity.setProcessDefinitionKey(historyEvent.getProcessDefinitionKey());
+        dbHistoryEntity.setProcessDefinitionId(historyEvent.getProcessDefinitionId());
 
         if (historyEvent instanceof HistoricProcessInstanceEventEntity)
         {
