@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Description;
 import java.util.ArrayList;
 import java.util.List;
 
-@Description("")
+@Description("Historic Event Data Factory")
 public class MongoDBHistoryEntity extends HistoricProcessInstanceEventEntity {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MongoDBHistoryEntity.class);
