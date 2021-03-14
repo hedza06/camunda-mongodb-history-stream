@@ -14,7 +14,7 @@ public class CustomHistoryLevel extends AbstractHistoryLevel implements HistoryL
 
     private static List<HistoryEventType> eventTypes = new ArrayList<>();
 
-    static{
+    static {
         eventTypes.add(HistoryEventTypes.PROCESS_INSTANCE_START);
         eventTypes.add(HistoryEventTypes.PROCESS_INSTANCE_END);
         eventTypes.add(HistoryEventTypes.ACTIVITY_INSTANCE_START);
@@ -35,11 +35,11 @@ public class CustomHistoryLevel extends AbstractHistoryLevel implements HistoryL
 
     @Override
     public String getName() {
-        return "no-sql-history";
+        return "event-history";
     }
 
     @Override
     public boolean isHistoryEventProduced(HistoryEventType eventType, Object entity) {
-        return eventTypes.contains(eventType);
+        return true;
     }
 }

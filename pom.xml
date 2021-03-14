@@ -15,7 +15,7 @@
     <description>Camunda History Stream To MongoDB</description>
 
     <properties>
-        <java.version>12</java.version>
+        <java.version>1.8</java.version>
         <camunda.springboot.version>3.3.1</camunda.springboot.version>
         <camunda.rest.version>3.3.1</camunda.rest.version>
         <camunda.webapp.version>3.3.1</camunda.webapp.version>

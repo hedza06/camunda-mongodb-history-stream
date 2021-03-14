@@ -1,6 +1,6 @@
 package com.camhistory.stream.config;
 
-import com.camhistory.stream.handlers.CustomHistoryEventHandler;
+import com.camhistory.stream.handlers.CustomActivityHistoryEventHandler;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.cfg.ProcessEnginePlugin;
@@ -16,7 +16,7 @@ import java.util.List;
 public class CustomProcessEnginePlugin implements ProcessEnginePlugin {
 
     @Autowired
-    private CustomHistoryEventHandler customHistoryEventHandler;
+    private CustomActivityHistoryEventHandler customActivityHistoryEventHandler;
 
 
     @Override
@@ -35,7 +35,7 @@ public class CustomProcessEnginePlugin implements ProcessEnginePlugin {
     public void postInit(ProcessEngineConfigurationImpl processEngineConfiguration)
     {
         processEngineConfiguration.setHistoryEventHandler(
-            new CompositeDbHistoryEventHandler(customHistoryEventHandler)
+            new CompositeDbHistoryEventHandler(customActivityHistoryEventHandler)
         );
     }
 
