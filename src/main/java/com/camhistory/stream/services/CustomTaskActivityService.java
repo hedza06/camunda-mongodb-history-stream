@@ -24,16 +24,6 @@ public class CustomTaskActivityService {
     @Autowired
     private CustomTaskActivityRepository customTaskActivityRepository;
 
-
-    /**
-     * Processing process instance events
-     *
-     * @param historyEvent history event
-     */
-    public void processProcessInstanceEvent(HistoryEvent historyEvent) {
-        // no implementation...
-    }
-
     /**
      * Processing variable update historic event
      *
@@ -99,7 +89,6 @@ public class CustomTaskActivityService {
      * @param historicTaskInstance historic task instance
      * @param eventType historic event type
      */
-    @SuppressWarnings("unchecked")
     private void handleTaskInstanceEventBasedOnEventType(HistoricTaskInstanceEventEntity historicTaskInstance,
                                                          String eventType)
     {
@@ -112,28 +101,17 @@ public class CustomTaskActivityService {
             taskEventEntity.setTaskName(historicTaskInstance.getName());
             taskEventEntity.setTaskInstanceId(historicTaskInstance.getTaskId());
             taskEventEntity.setLastAssignee(historicTaskInstance.getAssignee());
-            taskEventEntity.setCandidateUsers(taskEventEntity.getCandidateUsers()); // TODO: set candidate users
             taskEventEntity.setStartTime(historicTaskInstance.getStartTime());
 
-            Map<String, Long> vars = (Map<String, Long>) variableMapping.get(historicTaskInstance.getExecutionId());
-            taskEventEntity.setCustomerId(vars.get("customerId"));
-            taskEventEntity.setProductId(vars.get("productId"));
-          
-            // TODO: check vars for null
-            // 1. fetch customerId and productId if vars is null
-            // 2. fetch customerId and productId from map if vars is not null
-
-            // 3. TODO: fetch product and customer general data...
-
+            fetchCustomerAndProductRelevantData(taskEventEntity, historicTaskInstance);
             variableMapping.remove(historicTaskInstance.getExecutionId());
 
             customTaskActivityRepository.save(taskEventEntity);
         }
         else if (eventType.equals("complete"))
         {
-            // 1. fetch by executionId and taskId
-            TaskEventEntity taskEventEntity = customTaskActivityRepository.findByExecutionId(
-                historicTaskInstance.getExecutionId()
+            TaskEventEntity taskEventEntity = customTaskActivityRepository.findByExecutionIdAndTaskId(
+                historicTaskInstance.getExecutionId(), historicTaskInstance.getTaskId()
             );
             if (taskEventEntity != null)
             {
@@ -142,6 +120,33 @@ public class CustomTaskActivityService {
                 );
                 customTaskActivityRepository.save(taskEventEntity);
             }
+        }
+    }
+
+    /**
+     * Fetch customer and product relevant data
+     *
+     * @param taskEventEntity task event entity reference
+     * @param historicTaskInstance historic task instance
+     */
+    @SuppressWarnings("unchecked")
+    private void fetchCustomerAndProductRelevantData(TaskEventEntity taskEventEntity,
+                                                     HistoricTaskInstanceEventEntity historicTaskInstance)
+    {
+        String executionId = historicTaskInstance.getExecutionId();
+        Map<String, Long> vars = (Map<String, Long>) variableMapping.get(executionId);
+        if (vars != null && !vars.isEmpty())
+        {
+            taskEventEntity.setCustomerId(vars.get("customerId"));
+            taskEventEntity.setProductId(vars.get("productId"));
+        }
+        else
+        {
+            TaskEventEntity storedTaskEntity = customTaskActivityRepository.findByExecutionIdAndTaskId(
+                executionId, historicTaskInstance.getTaskId()
+            );
+            taskEventEntity.setCustomerId(storedTaskEntity.getCustomerId());
+            taskEventEntity.setProductId(storedTaskEntity.getProductId());
         }
     }
 }
