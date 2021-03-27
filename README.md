@@ -1,9 +1,12 @@
-# Camunda History With MongoDB
-This project illustrates usage of NoSQL database - MongoDB as a tool for
-registering all historic data (audit data).
+# Camunda History Reporting
+This project illustrates usage of composite DB history handler to import all relevant data into reporting data 
+store without affecting default Camunda history data.
+
+Reporting is based on to-do activites and approach of fetching to-do activities is much faster when using custom tables
+where you have all data that you need.
 
 ## Setting project up
-- Create database with name `cam-history`
+- Create database with name `cam-history` (use schema.sql file on project root)
 - Navigate to project directory and type `mvn clean install -DskipTests`
 - Run project
 
