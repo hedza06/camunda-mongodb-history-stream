@@ -2,9 +2,17 @@ package com.camhistory.stream.services;
 
 import com.camhistory.stream.CustomTaskActivityRepository;
 import com.camhistory.stream.entity.TaskEventEntity;
+import org.apache.commons.lang3.StringUtils;
+import org.camunda.bpm.engine.ProcessEngine;
+import org.camunda.bpm.engine.ProcessEngines;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.impl.history.event.HistoricTaskInstanceEventEntity;
 import org.camunda.bpm.engine.impl.history.event.HistoricVariableUpdateEventEntity;
 import org.camunda.bpm.engine.impl.history.event.HistoryEvent;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
+import org.camunda.bpm.engine.task.IdentityLink;
+import org.camunda.bpm.engine.task.IdentityLinkType;
 import org.camunda.bpm.engine.variable.Variables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +21,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class CustomTaskActivityService {
@@ -23,6 +33,7 @@ public class CustomTaskActivityService {
 
     @Autowired
     private CustomTaskActivityRepository customTaskActivityRepository;
+
 
     /**
      * Processing variable update historic event
@@ -38,7 +49,7 @@ public class CustomTaskActivityService {
             if (variableName.equals("customerId") || variableName.equals("productId"))
             {
                 appendVariableIdToVariableMap(
-                    variableName, variableEventEntity.getLongValue(), variableEventEntity.getExecutionId()
+                    variableName, variableEventEntity.getLongValue(), variableEventEntity.getProcessInstanceId()
                 );
             }
         }
@@ -64,22 +75,22 @@ public class CustomTaskActivityService {
      *
      * @param varName variable name
      * @param longValue variable long value
-     * @param executionId process execution identifier
+     * @param processInstanceId process instance identifier
      */
     @SuppressWarnings("unchecked")
-    private void appendVariableIdToVariableMap(String varName, Long longValue, String executionId)
+    private void appendVariableIdToVariableMap(String varName, Long longValue, String processInstanceId)
     {
-        if (variableMapping.containsKey(executionId))
+        if (variableMapping.containsKey(processInstanceId))
         {
-            Map<String, Long> vars = (Map<String, Long>) variableMapping.get(executionId);
+            Map<String, Long> vars = (Map<String, Long>) variableMapping.get(processInstanceId);
 
             Map<String, Long> data = new HashMap<>(vars);
             data.put(varName, longValue);
 
-            variableMapping.put(executionId, data);
+            variableMapping.put(processInstanceId, data);
         }
         else {
-            variableMapping.put(executionId, Variables.createVariables().putValue(varName, longValue));
+            variableMapping.put(processInstanceId, Variables.createVariables().putValue(varName, longValue));
         }
     }
 
@@ -96,15 +107,22 @@ public class CustomTaskActivityService {
         {
             TaskEventEntity taskEventEntity = new TaskEventEntity();
             taskEventEntity.setProcessDefinitionKey(historicTaskInstance.getProcessDefinitionKey());
+            taskEventEntity.setProcessDefinitionName(
+                fetchProcessDefinitionNameFromDefKey(historicTaskInstance.getProcessDefinitionKey())
+            );
             taskEventEntity.setProcessInstanceId(historicTaskInstance.getProcessInstanceId());
+            taskEventEntity.setExecutionId(historicTaskInstance.getExecutionId());
             taskEventEntity.setTaskId(historicTaskInstance.getTaskId());
             taskEventEntity.setTaskName(historicTaskInstance.getName());
             taskEventEntity.setTaskInstanceId(historicTaskInstance.getTaskId());
             taskEventEntity.setLastAssignee(historicTaskInstance.getAssignee());
+            taskEventEntity.setCandidateUsers(
+                fetchCandidateUsersByTaskId(historicTaskInstance.getTaskId())
+            );
             taskEventEntity.setStartTime(historicTaskInstance.getStartTime());
 
             fetchCustomerAndProductRelevantData(taskEventEntity, historicTaskInstance);
-            variableMapping.remove(historicTaskInstance.getExecutionId());
+            variableMapping.remove(historicTaskInstance.getProcessInstanceId());
 
             customTaskActivityRepository.save(taskEventEntity);
         }
@@ -124,6 +142,52 @@ public class CustomTaskActivityService {
     }
 
     /**
+     * Getting process definition name from process def key
+     *
+     * @param processDefinitionKey process definition key
+     * @return process definition name as String
+     */
+    private String fetchProcessDefinitionNameFromDefKey(String processDefinitionKey)
+    {
+        ProcessEngine processEngine = ProcessEngines.getDefaultProcessEngine();
+        RepositoryService repositoryService = processEngine.getRepositoryService();
+
+        ProcessDefinition processDefinition = repositoryService
+            .createProcessDefinitionQuery()
+            .processDefinitionKey(processDefinitionKey)
+            .active()
+            .singleResult();
+
+        return processDefinition.getName();
+    }
+
+    /**
+     * Fetch candidate users by task identifier
+     *
+     * @param taskId task identifier
+     * @return String value of candidate users
+     */
+    private String fetchCandidateUsersByTaskId(String taskId)
+    {
+        ProcessEngine processEngine = ProcessEngines.getDefaultProcessEngine();
+        TaskService taskService = processEngine.getTaskService();
+
+        List<IdentityLink> identityLinks = taskService.getIdentityLinksForTask(taskId);
+        if (identityLinks != null && !identityLinks.isEmpty())
+        {
+            String candidateUsers = identityLinks.stream()
+                .filter(identityLink -> identityLink.getType().equals(IdentityLinkType.CANDIDATE))
+                .map(IdentityLink::getUserId)
+                .collect(Collectors.joining(","));
+
+            if (StringUtils.isNotBlank(candidateUsers)) {
+                return candidateUsers;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Fetch customer and product relevant data
      *
      * @param taskEventEntity task event entity reference
@@ -133,8 +197,8 @@ public class CustomTaskActivityService {
     private void fetchCustomerAndProductRelevantData(TaskEventEntity taskEventEntity,
                                                      HistoricTaskInstanceEventEntity historicTaskInstance)
     {
-        String executionId = historicTaskInstance.getExecutionId();
-        Map<String, Long> vars = (Map<String, Long>) variableMapping.get(executionId);
+        String processInstanceId = historicTaskInstance.getProcessInstanceId();
+        Map<String, Long> vars = (Map<String, Long>) variableMapping.get(processInstanceId);
         if (vars != null && !vars.isEmpty())
         {
             taskEventEntity.setCustomerId(vars.get("customerId"));
@@ -142,9 +206,9 @@ public class CustomTaskActivityService {
         }
         else
         {
-            TaskEventEntity storedTaskEntity = customTaskActivityRepository.findByExecutionIdAndTaskId(
-                executionId, historicTaskInstance.getTaskId()
-            );
+            TaskEventEntity storedTaskEntity
+                = customTaskActivityRepository.findFirstByProcessInstanceId(processInstanceId);
+
             taskEventEntity.setCustomerId(storedTaskEntity.getCustomerId());
             taskEventEntity.setProductId(storedTaskEntity.getProductId());
         }
